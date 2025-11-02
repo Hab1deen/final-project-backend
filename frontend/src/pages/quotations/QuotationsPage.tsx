@@ -1,7 +1,15 @@
-import { useEffect, useState } from 'react';
-import { Plus, Eye, Edit, Trash2, Search, FileText, ArrowRight } from 'lucide-react';
-import { quotationApi } from '../../services/api';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from "react";
+import {
+  Plus,
+  Eye,
+  Edit,
+  Trash2,
+  Search,
+  FileText,
+  ArrowRight,
+} from "lucide-react";
+import { quotationApi } from "../../services/api";
+import { useNavigate } from "react-router-dom";
 
 interface Quotation {
   id: number;
@@ -20,8 +28,8 @@ const QuotationsPage = () => {
   const navigate = useNavigate();
   const [quotations, setQuotations] = useState<Quotation[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState('all');
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterStatus, setFilterStatus] = useState("all");
 
   const fetchQuotations = async () => {
     try {
@@ -29,8 +37,8 @@ const QuotationsPage = () => {
       const response = await quotationApi.getAll();
       setQuotations(response.data.data);
     } catch (error) {
-      console.error('Error fetching quotations:', error);
-      alert('ไม่สามารถดึงข้อมูลใบเสนอราคาได้');
+      console.error("Error fetching quotations:", error);
+      alert("ไม่สามารถดึงข้อมูลใบเสนอราคาได้");
     } finally {
       setLoading(false);
     }
@@ -41,42 +49,42 @@ const QuotationsPage = () => {
   }, []);
 
   const handleDelete = async (id: number) => {
-    if (!confirm('คุณต้องการลบใบเสนอราคานี้ใช่หรือไม่?')) return;
-    
+    if (!confirm("คุณต้องการลบใบเสนอราคานี้ใช่หรือไม่?")) return;
+
     try {
       await quotationApi.delete(id);
-      alert('ลบใบเสนอราคาสำเร็จ');
+      alert("ลบใบเสนอราคาสำเร็จ");
       fetchQuotations();
     } catch (error) {
-      console.error('Error deleting quotation:', error);
-      alert('ไม่สามารถลบใบเสนอราคาได้');
+      console.error("Error deleting quotation:", error);
+      alert("ไม่สามารถลบใบเสนอราคาได้");
     }
   };
 
   const handleConvertToInvoice = async (id: number) => {
-    if (!confirm('คุณต้องการแปลงเป็นใบแจ้งหนี้ใช่หรือไม่?')) return;
-    
+    if (!confirm("คุณต้องการแปลงเป็นใบแจ้งหนี้ใช่หรือไม่?")) return;
+
     try {
       await quotationApi.convertToInvoice(id);
-      alert('แปลงเป็นใบแจ้งหนี้สำเร็จ');
+      alert("แปลงเป็นใบแจ้งหนี้สำเร็จ");
       fetchQuotations();
     } catch (error) {
-      console.error('Error converting to invoice:', error);
-      alert('ไม่สามารถแปลงเป็นใบแจ้งหนี้ได้');
+      console.error("Error converting to invoice:", error);
+      alert("ไม่สามารถแปลงเป็นใบแจ้งหนี้ได้");
     }
   };
 
   const getStatusBadge = (status: string) => {
     const statusConfig: any = {
-      draft: { label: 'ร่าง', color: 'bg-gray-100 text-gray-800' },
-      sent: { label: 'ส่งแล้ว', color: 'bg-blue-100 text-blue-800' },
-      accepted: { label: 'อนุมัติ', color: 'bg-green-100 text-green-800' },
-      rejected: { label: 'ปฏิเสธ', color: 'bg-red-100 text-red-800' },
-      converted: { label: 'แปลงแล้ว', color: 'bg-purple-100 text-purple-800' },
+      draft: { label: "ร่าง", color: "bg-gray-100 text-gray-800" },
+      sent: { label: "ส่งแล้ว", color: "bg-blue-100 text-blue-800" },
+      accepted: { label: "อนุมัติ", color: "bg-green-100 text-green-800" },
+      rejected: { label: "ปฏิเสธ", color: "bg-red-100 text-red-800" },
+      converted: { label: "แปลงแล้ว", color: "bg-purple-100 text-purple-800" },
     };
 
     const config = statusConfig[status] || statusConfig.draft;
-    
+
     return (
       <span className={`px-2 py-1 text-xs font-medium rounded ${config.color}`}>
         {config.label}
@@ -84,13 +92,14 @@ const QuotationsPage = () => {
     );
   };
 
-  const filteredQuotations = quotations.filter(quotation => {
-    const matchSearch = 
+  const filteredQuotations = quotations.filter((quotation) => {
+    const matchSearch =
       quotation.quotationNo.toLowerCase().includes(searchTerm.toLowerCase()) ||
       quotation.customerName.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchStatus = filterStatus === 'all' || quotation.status === filterStatus;
-    
+
+    const matchStatus =
+      filterStatus === "all" || quotation.status === filterStatus;
+
     return matchSearch && matchStatus;
   });
 
@@ -111,7 +120,7 @@ const QuotationsPage = () => {
           <p className="text-gray-600">ทั้งหมด {quotations.length} รายการ</p>
         </div>
         <button
-          onClick={() => navigate('/quotations/create')}
+          onClick={() => navigate("/quotations/create")}
           className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
         >
           <Plus className="w-5 h-5" />
@@ -131,7 +140,7 @@ const QuotationsPage = () => {
             className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
         </div>
-        
+
         <select
           value={filterStatus}
           onChange={(e) => setFilterStatus(e.target.value)}
@@ -151,13 +160,27 @@ const QuotationsPage = () => {
         <table className="w-full">
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">เลขที่</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ลูกค้า</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">รายการ</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ยอดรวม</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">สถานะ</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">วันที่</th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">จัดการ</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                เลขที่
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                ลูกค้า
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                รายการ
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                ยอดรวม
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                สถานะ
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                วันที่
+              </th>
+              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                จัดการ
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200">
@@ -166,14 +189,20 @@ const QuotationsPage = () => {
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-2">
                     <FileText className="w-4 h-4 text-gray-400" />
-                    <span className="font-medium text-gray-900">{quotation.quotationNo}</span>
+                    <span className="font-medium text-gray-900">
+                      {quotation.quotationNo}
+                    </span>
                   </div>
                 </td>
                 <td className="px-6 py-4">
                   <div>
-                    <div className="font-medium text-gray-900">{quotation.customerName}</div>
+                    <div className="font-medium text-gray-900">
+                      {quotation.customerName}
+                    </div>
                     {quotation.customerPhone && (
-                      <div className="text-sm text-gray-500">{quotation.customerPhone}</div>
+                      <div className="text-sm text-gray-500">
+                        {quotation.customerPhone}
+                      </div>
                     )}
                   </div>
                 </td>
@@ -189,10 +218,10 @@ const QuotationsPage = () => {
                   {getStatusBadge(quotation.status)}
                 </td>
                 <td className="px-6 py-4 text-gray-600">
-                  {new Date(quotation.createdAt).toLocaleDateString('th-TH', {
-                    year: 'numeric',
-                    month: 'short',
-                    day: 'numeric'
+                  {new Date(quotation.createdAt).toLocaleDateString("th-TH", {
+                    year: "numeric",
+                    month: "short",
+                    day: "numeric",
                   })}
                 </td>
                 <td className="px-6 py-4">
@@ -204,8 +233,8 @@ const QuotationsPage = () => {
                     >
                       <Eye className="w-4 h-4" />
                     </button>
-                    
-                    {quotation.status !== 'converted' && (
+
+                    {quotation.status !== "converted" && (
                       <>
                         <button
                           onClick={() => handleConvertToInvoice(quotation.id)}
@@ -214,7 +243,7 @@ const QuotationsPage = () => {
                         >
                           <ArrowRight className="w-4 h-4" />
                         </button>
-                        
+
                         <button
                           onClick={() => handleDelete(quotation.id)}
                           className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
@@ -232,9 +261,7 @@ const QuotationsPage = () => {
         </table>
 
         {filteredQuotations.length === 0 && (
-          <div className="text-center py-12 text-gray-500">
-            ไม่พบใบเสนอราคา
-          </div>
+          <div className="text-center py-12 text-gray-500">ไม่พบใบเสนอราคา</div>
         )}
       </div>
     </div>
