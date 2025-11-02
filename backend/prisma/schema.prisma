@@ -1,0 +1,231 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ตารางลูกค้า
+model Customer {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String?
+  phone     String?
+  address   String?
+  taxId     String?  // เลขประจำตัวผู้เสียภาษี
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  quotations Quotation[]
+  invoices   Invoice[]
+
+  @@map("customers")
+}
+
+// ตารางสินค้า/บริการ
+model Product {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String?
+  price       Decimal  @db.Decimal(10, 2)
+  unit        String   @default("ชิ้น")
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  quotationItems QuotationItem[]
+  invoiceItems   InvoiceItem[]
+
+  @@map("products")
+}
+
+// ตารางใบเสนอราคา
+model Quotation {
+  id              Int      @id @default(autoincrement())
+  quotationNo     String   @unique
+  customerId      Int?
+  customerName    String
+  customerPhone   String?
+  customerAddress String?
+  
+  subtotal     Decimal  @db.Decimal(10, 2)
+  discount     Decimal  @default(0) @db.Decimal(10, 2)
+  vat          Decimal  @default(7) @db.Decimal(5, 2)
+  total        Decimal  @db.Decimal(10, 2)
+  
+  notes        String?
+  validUntil   DateTime?
+  status       String   @default("draft") // draft, sent, accepted, rejected, converted
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  customer    Customer?             @relation(fields: [customerId], references: [id])
+  items       QuotationItem[]
+  images      QuotationImage[]
+  signatures  QuotationSignature[]
+  invoice     Invoice?
+
+  @@map("quotations")
+}
+
+// ตารางรายการสินค้าในใบเสนอราคา
+model QuotationItem {
+  id          Int     @id @default(autoincrement())
+  quotationId Int
+  productId   Int?
+  productName String
+  description String?
+  quantity    Int
+  price       Decimal @db.Decimal(10, 2)
+  total       Decimal @db.Decimal(10, 2)
+  
+  quotation Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  product   Product?  @relation(fields: [productId], references: [id])
+
+  @@map("quotation_items")
+}
+
+// ตารางรูปภาพใบเสนอราคา
+model QuotationImage {
+  id          Int      @id @default(autoincrement())
+  quotationId Int
+  imageUrl    String
+  caption     String?
+  createdAt   DateTime @default(now())
+  
+  quotation Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+
+  @@map("quotation_images")
+}
+
+// ตารางลายเซ็นใบเสนอราคา
+model QuotationSignature {
+  id           Int      @id @default(autoincrement())
+  quotationId  Int
+  type         String   // shop, customer
+  signatureUrl String
+  signerName   String
+  signedAt     DateTime @default(now())
+  
+  quotation Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+
+  @@map("quotation_signatures")
+}
+
+// ตารางใบแจ้งหนี้
+model Invoice {
+  id              Int      @id @default(autoincrement())
+  invoiceNo       String   @unique
+  quotationId     Int?     @unique
+  customerId      Int?
+  customerName    String
+  customerPhone   String?
+  customerAddress String?
+  
+  subtotal        Decimal  @db.Decimal(10, 2)
+  discount        Decimal  @default(0) @db.Decimal(10, 2)
+  vat             Decimal  @default(7) @db.Decimal(5, 2)
+  total           Decimal  @db.Decimal(10, 2)
+  
+  paidAmount      Decimal  @default(0) @db.Decimal(10, 2)
+  remainingAmount Decimal  @db.Decimal(10, 2)
+  
+  status    String    @default("unpaid") // unpaid, partial, paid, overdue
+  dueDate   DateTime?
+  paidDate  DateTime?
+  
+  notes     String?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  customer     Customer?          @relation(fields: [customerId], references: [id])
+  quotation    Quotation?         @relation(fields: [quotationId], references: [id])
+  items        InvoiceItem[]
+  images       InvoiceImage[]
+  signatures   InvoiceSignature[]
+  payments     Payment[]
+  appointments Appointment[]
+
+  @@map("invoices")
+}
+
+// ตารางรายการสินค้าในใบแจ้งหนี้
+model InvoiceItem {
+  id          Int     @id @default(autoincrement())
+  invoiceId   Int
+  productId   Int?
+  productName String
+  description String?
+  quantity    Int
+  price       Decimal @db.Decimal(10, 2)
+  total       Decimal @db.Decimal(10, 2)
+  
+  invoice Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  product Product? @relation(fields: [productId], references: [id])
+
+  @@map("invoice_items")
+}
+
+// ตารางรูปภาพใบแจ้งหนี้
+model InvoiceImage {
+  id        Int      @id @default(autoincrement())
+  invoiceId Int
+  imageUrl  String
+  caption   String?
+  createdAt DateTime @default(now())
+  
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@map("invoice_images")
+}
+
+// ตารางลายเซ็นใบแจ้งหนี้
+model InvoiceSignature {
+  id           Int      @id @default(autoincrement())
+  invoiceId    Int
+  type         String   // shop, customer
+  signatureUrl String
+  signerName   String
+  signedAt     DateTime @default(now())
+  
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@map("invoice_signatures")
+}
+
+// ตารางการชำระเงิน
+model Payment {
+  id            Int      @id @default(autoincrement())
+  invoiceId     Int
+  amount        Decimal  @db.Decimal(10, 2)
+  paymentDate   DateTime @default(now())
+  paymentMethod String   @default("cash") // cash, transfer, credit
+  notes         String?
+  createdAt     DateTime @default(now())
+  
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@map("payments")
+}
+
+// ตารางนัดหมาย
+model Appointment {
+  id              Int      @id @default(autoincrement())
+  invoiceId       Int?
+  title           String
+  description     String?
+  appointmentDate DateTime
+  appointmentType String   // installation, payment, other
+  status          String   @default("pending") // pending, completed, cancelled
+  reminderSent    Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  invoice Invoice? @relation(fields: [invoiceId], references: [id])
+
+  @@map("appointments")
+}
