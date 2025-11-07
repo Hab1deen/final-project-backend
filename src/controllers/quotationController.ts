@@ -88,7 +88,8 @@ export const createQuotation = async (
       discount = 0,
       vat = 7,
       notes,
-      validUntil
+      validUntil,
+      images
     } = req.body;
 
     // Validation
@@ -143,11 +144,18 @@ export const createQuotation = async (
         validUntil: validUntil ? new Date(validUntil) : null,
         items: {
           create: itemsData
-        }
+        },
+        images: images ? {
+          create: images.map((img: any) => ({
+            imageUrl: img.url,
+            caption: img.caption || null
+          }))
+        } : undefined
       },
       include: {
         customer: true,
-        items: true
+        items: true,
+        images: true
       }
     });
 
@@ -332,6 +340,50 @@ export const convertToInvoice = async (
     });
 
     return successResponse(res, invoice, 'แปลงเป็นใบแจ้งหนี้สำเร็จ', 201);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// เพิ่มลายเซ็น
+export const addSignature = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { id } = req.params;
+    const { type, signatureData, signerName } = req.body;
+
+    // Validation
+    if (!type || !signatureData || !signerName) {
+      throw new AppError('กรุณากรอกข้อมูลให้ครบถ้วน', 400);
+    }
+
+    if (type !== 'shop' && type !== 'customer') {
+      throw new AppError('ประเภทลายเซ็นไม่ถูกต้อง', 400);
+    }
+
+    // ตรวจสอบว่ามีใบเสนอราคานี้หรือไม่
+    const quotation = await prisma.quotation.findUnique({
+      where: { id: parseInt(id) }
+    });
+
+    if (!quotation) {
+      throw new AppError('ไม่พบใบเสนอราคานี้', 404);
+    }
+
+    // สร้างลายเซ็น
+    const signature = await prisma.quotationSignature.create({
+      data: {
+        quotationId: parseInt(id),
+        type,
+        signatureUrl: signatureData, // base64 string
+        signerName
+      }
+    });
+
+    return successResponse(res, signature, 'บันทึกลายเซ็นสำเร็จ', 201);
   } catch (error) {
     next(error);
   }

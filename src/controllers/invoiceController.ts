@@ -282,3 +282,47 @@ export const deleteInvoice = async (
     next(error);
   }
 };
+
+// เพิ่มลายเซ็น
+export const addSignature = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { id } = req.params;
+    const { type, signatureData, signerName } = req.body;
+
+    // Validation
+    if (!type || !signatureData || !signerName) {
+      throw new AppError('กรุณากรอกข้อมูลให้ครบถ้วน', 400);
+    }
+
+    if (type !== 'shop' && type !== 'customer') {
+      throw new AppError('ประเภทลายเซ็นไม่ถูกต้อง', 400);
+    }
+
+    // ตรวจสอบว่ามีใบแจ้งหนี้นี้หรือไม่
+    const invoice = await prisma.invoice.findUnique({
+      where: { id: parseInt(id) }
+    });
+
+    if (!invoice) {
+      throw new AppError('ไม่พบใบแจ้งหนี้นี้', 404);
+    }
+
+    // สร้างลายเซ็น
+    const signature = await prisma.invoiceSignature.create({
+      data: {
+        invoiceId: parseInt(id),
+        type,
+        signatureUrl: signatureData, // base64 string
+        signerName
+      }
+    });
+
+    return successResponse(res, signature, 'บันทึกลายเซ็นสำเร็จ', 201);
+  } catch (error) {
+    next(error);
+  }
+};
