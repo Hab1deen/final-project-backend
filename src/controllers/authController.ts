@@ -1,10 +1,13 @@
 import { Request, Response, NextFunction } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt, { SignOptions } from 'jsonwebtoken';
+import crypto from 'crypto';
 import prisma from '../config/prisma';
 import { successResponse } from '../utils/response';
 import { AppError } from '../middlewares/errorHandler';
 import { AuthRequest } from '../middlewares/authMiddleware';
+import emailService from '../services/email.service';
+import { createLoginHistory } from './loginHistoryController';
 
 const JWT_SECRET: string = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 const JWT_EXPIRES_IN: string = process.env.JWT_EXPIRES_IN || '7d';
@@ -62,15 +65,36 @@ export const register = async (
             // Hash password
             const hashedPassword = await bcrypt.hash(password, 10);
 
-            // Create user
+            // Create user (NOT verified by default)
             const user = await prisma.user.create({
                   data: {
                         email,
                         password: hashedPassword,
                         name,
-                        role: 'user'
+                        role: 'user',
+                        isEmailVerified: false  // Require email verification
                   }
             });
+
+            // Generate verification token
+            const verificationToken = crypto.randomBytes(32).toString('hex');
+            const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+            await prisma.emailVerificationToken.create({
+                  data: {
+                        userId: user.id,
+                        token: verificationToken,
+                        expiresAt
+                  }
+            });
+
+            // Send verification email
+            try {
+                  await emailService.sendEmailVerification(user.email, user.name, verificationToken);
+            } catch (emailError) {
+                  console.error('Failed to send verification email:', emailError);
+                  // Continue even if email fails
+            }
 
             // Generate token
             const token = generateToken(user);
@@ -82,7 +106,8 @@ export const register = async (
                   res,
                   {
                         user: userWithoutPassword,
-                        token
+                        token,
+                        message: 'สมัครสมาชิกสำเร็จ กรุณาตรวจสอบอีเมลเพื่อยืนยันบัญชี'
                   },
                   'สมัครสมาชิกสำเร็จ',
                   201
@@ -100,6 +125,10 @@ export const login = async (
 ) => {
       try {
             const { email, password } = req.body;
+
+            // Get IP and user agent for login history
+            const ipAddress = (req.headers['x-forwarded-for'] as string || req.connection.remoteAddress || 'unknown').toString();
+            const userAgent = req.headers['user-agent'] || 'unknown';
 
             // Validation
             if (!email || !password) {
@@ -119,8 +148,36 @@ export const login = async (
             const isPasswordValid = await bcrypt.compare(password, user.password);
 
             if (!isPasswordValid) {
+                  // Record failed login attempt
+                  await createLoginHistory(
+                        user.id,
+                        ipAddress,
+                        userAgent,
+                        'failed',
+                        'รหัสผ่านไม่ถูกต้อง'
+                  );
                   throw new AppError('อีเมลหรือรหัสผ่านไม่ถูกต้อง', 401);
             }
+
+            // Check email verification (commented for now - uncomment in production)
+            // if (!user.isEmailVerified) {
+            //       await createLoginHistory(
+            //             user.id,
+            //             ipAddress,
+            //             userAgent,
+            //             'failed',
+            //             'อีเมลยังไม่ได้รับการยืนยัน'
+            //       );
+            //       throw new AppError('กรุณายืนยันอีเมลก่อนเข้าสู่ระบบ', 403);
+            // }
+
+            // Record successful login
+            await createLoginHistory(
+                  user.id,
+                  ipAddress,
+                  userAgent,
+                  'success'
+            );
 
             // Generate token
             const token = generateToken(user);

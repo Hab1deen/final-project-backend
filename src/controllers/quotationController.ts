@@ -2,6 +2,11 @@ import { Request, Response, NextFunction } from 'express';
 import prisma from '../config/prisma';
 import { successResponse } from '../utils/response';
 import { AppError } from '../middlewares/errorHandler';
+import { getPaginationParams, createPaginatedResponse } from '../utils/paginationHelper';
+import emailService from '../services/email.service';
+import pdfService from '../services/pdf.service';
+import { v4 as uuidv4 } from 'uuid';
+import { emailNotificationService } from '../services/emailNotification.service';
 
 // ดึงใบเสนอราคาทั้งหมด
 export const getAllQuotations = async (
@@ -10,10 +15,20 @@ export const getAllQuotations = async (
   next: NextFunction
 ) => {
   try {
-    const { status } = req.query;
+    const { status, page, limit } = req.query;
+    const { skip, take, page: currentPage, limit: pageLimit } = getPaginationParams({ page, limit });
 
+    // สร้าง where clause
+    const where = status ? { status: status as string } : {};
+
+    // นับจำนวนทั้งหมด
+    const total = await prisma.quotation.count({ where });
+
+    // ดึงข้อมูลแบบ paginate
     const quotations = await prisma.quotation.findMany({
-      where: status ? { status: status as string } : {},
+      where,
+      skip,
+      take,
       orderBy: { createdAt: 'desc' },
       include: {
         customer: true,
@@ -32,7 +47,14 @@ export const getAllQuotations = async (
       }
     });
 
-    return successResponse(res, quotations, 'ดึงข้อมูลใบเสนอราคาสำเร็จ');
+    // Format response with pagination
+    const paginatedData = createPaginatedResponse(quotations, total, currentPage, pageLimit);
+
+    return res.json({
+      success: true,
+      message: 'ดึงข้อมูลใบเสนอราคาสำเร็จ',
+      ...paginatedData
+    });
   } catch (error) {
     next(error);
   }
@@ -89,32 +111,33 @@ export const createQuotation = async (
       vat = 7,
       notes,
       validUntil,
-      images
+      images,
+      siteImages,
+      shopSignature, // เปลี่ยนจาก customerSignature
+      signerName // ชื่อผู้เซ็น
     } = req.body;
 
     // Validation
-    if (!customerName) {
-      throw new AppError('กรุณากรอกชื่อลูกค้า', 400);
-    }
-
-    if (!items || items.length === 0) {
-      throw new AppError('กรุณาเพิ่มรายการสินค้าอย่างน้อย 1 รายการ', 400);
+    if (!customerName || !items || items.length === 0) {
+      throw new AppError('ข้อมูลไม่ครบถ้วน', 400);
     }
 
     // คำนวณยอดรวม
-    let subtotal = 0;
     const itemsData = items.map((item: any) => {
-      const itemTotal = item.quantity * item.price;
-      subtotal += itemTotal;
+      const itemTotal = parseFloat(item.quantity) * parseFloat(item.price);
       return {
-        productId: item.productId,
+        productId: item.productId ? parseInt(item.productId) : null,
         productName: item.productName,
-        description: item.description,
-        quantity: item.quantity,
+        description: item.description || null,
+        quantity: parseInt(item.quantity),
         price: parseFloat(item.price),
         total: itemTotal
       };
     });
+
+    const subtotal = itemsData.reduce((sum: number, item: any) => {
+      return sum + item.total;
+    }, 0);
 
     const discountAmount = parseFloat(discount.toString());
     const vatPercent = parseFloat(vat.toString());
@@ -122,11 +145,34 @@ export const createQuotation = async (
     const vatAmount = (subtotalAfterDiscount * vatPercent) / 100;
     const total = subtotalAfterDiscount + vatAmount;
 
-    // สร้างเลขที่ใบเสนอราคา
+    // สร้างเลขที่ใบเสนอราคา - แก้ไขให้หาเลขล่าสุดในเดือนนี้
     const year = new Date().getFullYear() + 543; // พ.ศ.
     const month = String(new Date().getMonth() + 1).padStart(2, '0');
-    const count = await prisma.quotation.count() + 1;
-    const quotationNo = `QT${year}${month}${String(count).padStart(4, '0')}`;
+    const prefix = `QT${year}${month}`;
+
+    // หา quotation ล่าสุดในเดือนนี้
+    const latestQuotation = await prisma.quotation.findFirst({
+      where: {
+        quotationNo: {
+          startsWith: prefix
+        }
+      },
+      orderBy: {
+        quotationNo: 'desc'
+      }
+    });
+
+    // ถ้ามี quotation ในเดือนนี้แล้ว ให้เอาเลขท้ายมา +1
+    let runningNumber = 1;
+    if (latestQuotation) {
+      const lastNumber = parseInt(latestQuotation.quotationNo.slice(-4));
+      runningNumber = lastNumber + 1;
+    }
+
+    const quotationNo = `${prefix}${String(runningNumber).padStart(4, '0')}`;
+
+    // สร้าง approval token
+    const approvalToken = uuidv4();
 
     // สร้างใบเสนอราคา
     const quotation = await prisma.quotation.create({
@@ -142,6 +188,10 @@ export const createQuotation = async (
         total,
         notes,
         validUntil: validUntil ? new Date(validUntil) : null,
+        siteImages,
+        // ลบ customerSignature ออก
+        approvalToken: approvalToken as any,
+        approvalStatus: 'pending',
         items: {
           create: itemsData
         },
@@ -150,14 +200,37 @@ export const createQuotation = async (
             imageUrl: img.url,
             caption: img.caption || null
           }))
+        } : undefined,
+        // เพิ่ม shop signature ถ้ามี
+        signatures: (shopSignature && signerName) ? {
+          create: [{
+            type: 'shop',
+            signatureUrl: shopSignature,
+            signerName: signerName,
+            signedAt: new Date()
+          }]
         } : undefined
-      },
+      } as any,
       include: {
         customer: true,
         items: true,
-        images: true
+        images: true,
+        signatures: true // เพิ่ม signatures
       }
     });
+
+    // ส่งการแจ้งเตือนทาง Email (ถ้าลูกค้ามี email)
+    const createdQuotation = quotation as any;
+    if (createdQuotation.customer?.email) {
+      try {
+        const pdfBuffer = await pdfService.generateQuotationPDF(createdQuotation);
+        await emailService.sendQuotationToCustomer(createdQuotation, pdfBuffer);
+        console.log(`✓ Email sent to ${createdQuotation.customer.email}`);
+      } catch (emailError) {
+        console.error('Error sending email:', emailError);
+        // ไม่ให้ fail ทั้งหมดถ้าส่ง email ไม่ได้
+      }
+    }
 
     return successResponse(res, quotation, 'สร้างใบเสนอราคาสำเร็จ', 201);
   } catch (error) {
@@ -181,7 +254,9 @@ export const updateQuotation = async (
       discount,
       vat,
       notes,
-      status
+      status,
+      siteImages,        // รูปภาพหน้างาน (Before)
+      customerSignature  // ลายเซ็นลูกค้า (อนุมัติ)
     } = req.body;
 
     // ตรวจสอบว่ามีใบเสนอราคานี้หรือไม่
@@ -202,6 +277,14 @@ export const updateQuotation = async (
       notes,
       status
     };
+
+    // เพิ่มการอัปเดตรูปภาพและลายเซ็น (ถ้ามีส่งมา)
+    if (siteImages !== undefined) {
+      updateData.siteImages = siteImages;
+    }
+    if (customerSignature !== undefined) {
+      updateData.customerSignature = customerSignature;
+    }
 
     if (items && items.length > 0) {
       let subtotal = 0;
@@ -297,50 +380,96 @@ export const convertToInvoice = async (
       throw new AppError('ใบเสนอราคานี้ถูกแปลงเป็นใบแจ้งหนี้แล้ว', 400);
     }
 
-    // สร้างเลขที่ใบแจ้งหนี้
-    const year = new Date().getFullYear() + 543;
-    const month = String(new Date().getMonth() + 1).padStart(2, '0');
-    const count = await prisma.invoice.count() + 1;
-    const invoiceNo = `INV${year}${month}${String(count).padStart(4, '0')}`;
+    // Check if invoice already exists (prevent duplicate/crash)
+    const existingInvoice = await prisma.invoice.findUnique({
+      where: { quotationId: quotation.id }
+    });
 
-    // สร้างใบแจ้งหนี้
-    const invoice = await prisma.invoice.create({
-      data: {
-        invoiceNo,
-        quotationId: quotation.id,
-        customerId: quotation.customerId,
-        customerName: quotation.customerName,
-        customerPhone: quotation.customerPhone,
-        customerAddress: quotation.customerAddress,
-        subtotal: quotation.subtotal,
-        discount: quotation.discount,
-        vat: quotation.vat,
-        total: quotation.total,
-        remainingAmount: quotation.total,
-        items: {
-          create: quotation.items.map(item => ({
-            productId: item.productId,
-            productName: item.productName,
-            description: item.description,
-            quantity: item.quantity,
-            price: item.price,
-            total: item.total
-          }))
+    if (existingInvoice) {
+      // If invoice exists but status wasn't updated, update it now
+      await prisma.quotation.update({
+        where: { id: quotation.id },
+        data: { status: 'converted' }
+      });
+      return successResponse(res, existingInvoice, 'ใบเสนอราคานี้มีใบแจ้งหนี้อยู่แล้ว (อัปเดตสถานะสำเร็จ)');
+    }
+
+    // Start Transaction
+    const invoice = await prisma.$transaction(async (tx) => {
+      // สร้างเลขที่ใบแจ้งหนี้
+      const year = new Date().getFullYear() + 543;
+      const month = String(new Date().getMonth() + 1).padStart(2, '0');
+      const count = await tx.invoice.count() + 1;
+      const invoiceNo = `INV${year}${month}${String(count).padStart(4, '0')}`;
+
+      // สร้างใบแจ้งหนี้
+      const newInvoice = await tx.invoice.create({
+        data: {
+          invoiceNo,
+          quotationId: quotation.id,
+          customerId: quotation.customerId,
+          customerName: quotation.customerName,
+          customerPhone: quotation.customerPhone,
+          customerAddress: quotation.customerAddress,
+          subtotal: quotation.subtotal,
+          discount: quotation.discount,
+          vat: quotation.vat,
+          total: quotation.total,
+          remainingAmount: quotation.total,
+          items: {
+            create: quotation.items.map(item => ({
+              productId: item.productId,
+              productName: item.productName,
+              description: item.description,
+              quantity: item.quantity,
+              price: item.price,
+              total: item.total
+            }))
+          }
+        },
+        include: {
+          items: true
         }
-      },
+      });
+
+      // อัพเดทสถานะใบเสนอราคา
+      await tx.quotation.update({
+        where: { id: parseInt(id) },
+        data: { status: 'converted' }
+      });
+
+      return newInvoice;
+    });
+
+    // ส่ง email ใบแจ้งหนี้ให้ลูกค้า (ถ้ามี email)
+    // ทำนอก transaction เพื่อไม่ให้ block DB
+    const fullInvoice = await prisma.invoice.findUnique({
+      where: { id: invoice.id },
       include: {
-        items: true
+        items: true,
+        customer: true,
+        signatures: true,
+        quotation: {
+          include: {
+            customer: true
+          }
+        }
       }
     });
 
-    // อัพเดทสถานะใบเสนอราคา
-    await prisma.quotation.update({
-      where: { id: parseInt(id) },
-      data: { status: 'converted' }
-    });
+    if (fullInvoice && fullInvoice.customer?.email) {
+      try {
+        const pdfBuffer = await pdfService.generateInvoicePDF(fullInvoice);
+        await emailService.sendInvoiceToCustomer(fullInvoice, pdfBuffer);
+        console.log(`✓ Invoice email sent to customer`);
+      } catch (emailError) {
+        console.error('Error sending invoice email:', emailError);
+      }
+    }
 
     return successResponse(res, invoice, 'แปลงเป็นใบแจ้งหนี้สำเร็จ', 201);
   } catch (error) {
+    console.error("Error converting invoice:", error); // Log error locally
     next(error);
   }
 };

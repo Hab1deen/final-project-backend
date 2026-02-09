@@ -15,13 +15,13 @@ export const uploadImage = async (
       throw new AppError('กรุณาเลือกไฟล์รูปภาพ', 400);
     }
 
-    // ✅ ส่งกลับเป็น relative path
+    // ส่งกลับเป็น relative path
     const imageUrl = `/uploads/${req.file.filename}`;
 
     return successResponse(res, {
       filename: req.file.filename,
       originalName: req.file.originalname,
-      url: imageUrl, // ✅ relative path
+      url: imageUrl, // relative path
       size: req.file.size,
       mimetype: req.file.mimetype
     }, 'อัพโหลดรูปภาพสำเร็จ', 201);
@@ -45,7 +45,7 @@ export const uploadMultipleImages = async (
     const images = files.map(file => ({
       filename: file.filename,
       originalName: file.originalname,
-      url: `/uploads/${file.filename}`, // ✅ relative path
+      url: `/uploads/${file.filename}`, // relative path
       size: file.size,
       mimetype: file.mimetype
     }));
