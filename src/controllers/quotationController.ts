@@ -104,6 +104,7 @@ export const createQuotation = async (
     const {
       customerId,
       customerName,
+      customerEmail,
       customerPhone,
       customerAddress,
       items,
@@ -219,17 +220,22 @@ export const createQuotation = async (
       }
     });
 
-    // ส่งการแจ้งเตือนทาง Email (ถ้าลูกค้ามี email)
+    // ส่งการแจ้งเตือนทาง Email (ถ้ามี email)
     const createdQuotation = quotation as any;
-    if (createdQuotation.customer?.email) {
+    const emailToSend = customerEmail || createdQuotation.customer?.email;
+
+    if (emailToSend) {
       try {
+        console.log(`Attempting to send email to: ${emailToSend}`);
         const pdfBuffer = await pdfService.generateQuotationPDF(createdQuotation);
-        await emailService.sendQuotationToCustomer(createdQuotation, pdfBuffer);
-        console.log(`✓ Email sent to ${createdQuotation.customer.email}`);
+        await emailService.sendQuotationToCustomer(createdQuotation, pdfBuffer, emailToSend);
+        console.log(`✓ Email sent successfully to ${emailToSend}`);
       } catch (emailError) {
         console.error('Error sending email:', emailError);
         // ไม่ให้ fail ทั้งหมดถ้าส่ง email ไม่ได้
       }
+    } else {
+      console.log('⚠ No email address provided - skipping email notification');
     }
 
     return successResponse(res, quotation, 'สร้างใบเสนอราคาสำเร็จ', 201);

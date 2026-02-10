@@ -42,7 +42,7 @@ class EmailService {
   }
 
   // ส่งใบเสนอราคาไปหาลูกค้า
-  async sendQuotationToCustomer(quotation: any, pdfBuffer?: Buffer) {
+  async sendQuotationToCustomer(quotation: any, pdfBuffer?: Buffer, customerEmail?: string) {
     const approvalLink = `${process.env.FRONTEND_URL}/public/quotations/${quotation.approvalToken}`;
 
     const html = `
@@ -389,7 +389,7 @@ class EmailService {
       : [];
 
     await this.sendEmail(
-      quotation.customer.email,
+      customerEmail || quotation.customer?.email,
       `ใบเสนอราคา #${quotation.quotationNo} จาก ${process.env.SMTP_FROM_NAME}`,
       html,
       attachments
