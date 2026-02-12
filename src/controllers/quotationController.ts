@@ -224,6 +224,10 @@ export const createQuotation = async (
     const createdQuotation = quotation as any;
     const emailToSend = customerEmail || createdQuotation.customer?.email;
 
+    console.log('[DEBUG] Customer Email Override:', customerEmail);
+    console.log('[DEBUG] Customer Relation Email:', createdQuotation.customer?.email);
+    console.log('[DEBUG] Final Email to Send:', emailToSend);
+
     if (emailToSend) {
       try {
         console.log(`Attempting to send email to: ${emailToSend}`);
