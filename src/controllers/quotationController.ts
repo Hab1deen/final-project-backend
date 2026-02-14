@@ -100,6 +100,7 @@ export const createQuotation = async (
   res: Response,
   next: NextFunction
 ) => {
+  console.log('[DEBUG] createQuotation endpoint called');
   try {
     const {
       customerId,

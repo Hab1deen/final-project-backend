@@ -14,6 +14,15 @@ class EmailService {
         pass: process.env.SMTP_PASS,
       },
     });
+
+    // Verify connection
+    this.transporter.verify(function (error, success) {
+      if (error) {
+        console.error('[DEBUG] SMTP Connection Error:', error);
+      } else {
+        console.log('[DEBUG] SMTP Server is ready to take our messages');
+      }
+    });
   }
 
   // ส่ง email พื้นฐาน
@@ -23,6 +32,7 @@ class EmailService {
     html: string,
     attachments?: any[]
   ) {
+    console.log(`[DEBUG] Preparing to send email to: ${to}`);
     try {
       const mailOptions = {
         from: `${process.env.SMTP_FROM_NAME} <${process.env.SMTP_FROM_EMAIL}>`,
