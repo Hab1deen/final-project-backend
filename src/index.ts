@@ -32,6 +32,7 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 app.get('/', (req: Request, res: Response) => {
+  console.log('🚀 BACKEND VERSION: DEBUG-002 - CHECKS LOGS'); // Version Verification Log
   res.json({
     message: 'ระบบจัดการเอกสารธุรกิจ API',
     status: 'Running',
