@@ -233,14 +233,8 @@ export const createQuotation = async (
       try {
         console.log(`[EMAIL] Attempting to send email to: ${emailToSend}`);
 
-        // ลอง generate PDF แยก — ถ้า fail ก็ส่งอีเมลโดยไม่แนบ PDF
-        let pdfBuffer: Buffer | undefined;
-        try {
-          pdfBuffer = await pdfService.generateQuotationPDF(createdQuotation);
-          console.log('[EMAIL] ✓ PDF generated successfully');
-        } catch (pdfError) {
-          console.error('[EMAIL] ✗ PDF generation failed (will send email without PDF):', pdfError instanceof Error ? pdfError.message : pdfError);
-        }
+        // ข้าม PDF generation บน Free tier — ส่งแค่อีเมล HTML อย่างเดียว
+        const pdfBuffer = undefined;
 
         await emailService.sendQuotationToCustomer(createdQuotation, pdfBuffer, emailToSend);
         console.log(`[EMAIL] ✓ Email sent successfully to ${emailToSend}`);
