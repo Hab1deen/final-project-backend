@@ -55,7 +55,14 @@ app.get('/', (req: Request, res: Response) => {
 app.get('/api/health', (req: Request, res: Response) => {
   res.json({
     status: 'OK',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    emailConfig: {
+      smtpUser: process.env.SMTP_USER ? `✅ Set (${process.env.SMTP_USER})` : '❌ Missing',
+      smtpPass: process.env.SMTP_PASS ? '✅ Set' : '❌ Missing',
+      smtpFromName: process.env.SMTP_FROM_NAME || '❌ Missing',
+      smtpFromEmail: process.env.SMTP_FROM_EMAIL || '❌ Missing',
+      frontendUrl: process.env.FRONTEND_URL || '❌ Missing',
+    }
   });
 });
 

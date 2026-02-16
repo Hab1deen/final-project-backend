@@ -245,6 +245,8 @@ export const createReceipt = async (
     // ส่ง email ใบเสร็จให้ลูกค้า (ถ้ามี email)
     if (receipt.invoice.customer?.email) {
       try {
+        console.log(`[EMAIL] Attempting to send receipt email to: ${receipt.invoice.customer.email}`);
+
         const fullReceipt = await prisma.receipt.findUnique({
           where: { id: receipt.id },
           include: {
@@ -257,12 +259,19 @@ export const createReceipt = async (
         });
 
         if (fullReceipt) {
-          const pdfBuffer = await pdfService.generateReceiptPDF(fullReceipt);
+          let pdfBuffer: Buffer | undefined;
+          try {
+            pdfBuffer = await pdfService.generateReceiptPDF(fullReceipt);
+            console.log('[EMAIL] ✓ Receipt PDF generated successfully');
+          } catch (pdfError) {
+            console.error('[EMAIL] ✗ Receipt PDF generation failed (will send email without PDF):', pdfError instanceof Error ? pdfError.message : pdfError);
+          }
+
           await emailService.sendReceiptToCustomer(fullReceipt, pdfBuffer);
-          console.log(`✓ Receipt email sent to customer`);
+          console.log(`[EMAIL] ✓ Receipt email sent to customer`);
         }
       } catch (emailError) {
-        console.error('Error sending receipt email:', emailError);
+        console.error('[EMAIL] ✗ Error sending receipt email:', emailError instanceof Error ? emailError.message : emailError);
         // ไม่ให้ fail ทั้งหมดถ้าส่ง email ไม่ได้
       }
     }

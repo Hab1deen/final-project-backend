@@ -231,16 +231,25 @@ export const createQuotation = async (
 
     if (emailToSend) {
       try {
-        console.log(`Attempting to send email to: ${emailToSend}`);
-        const pdfBuffer = await pdfService.generateQuotationPDF(createdQuotation);
+        console.log(`[EMAIL] Attempting to send email to: ${emailToSend}`);
+
+        // ลอง generate PDF แยก — ถ้า fail ก็ส่งอีเมลโดยไม่แนบ PDF
+        let pdfBuffer: Buffer | undefined;
+        try {
+          pdfBuffer = await pdfService.generateQuotationPDF(createdQuotation);
+          console.log('[EMAIL] ✓ PDF generated successfully');
+        } catch (pdfError) {
+          console.error('[EMAIL] ✗ PDF generation failed (will send email without PDF):', pdfError instanceof Error ? pdfError.message : pdfError);
+        }
+
         await emailService.sendQuotationToCustomer(createdQuotation, pdfBuffer, emailToSend);
-        console.log(`✓ Email sent successfully to ${emailToSend}`);
+        console.log(`[EMAIL] ✓ Email sent successfully to ${emailToSend}`);
       } catch (emailError) {
-        console.error('Error sending email:', emailError);
+        console.error('[EMAIL] ✗ Error sending email:', emailError instanceof Error ? emailError.message : emailError);
         // ไม่ให้ fail ทั้งหมดถ้าส่ง email ไม่ได้
       }
     } else {
-      console.log('⚠ No email address provided - skipping email notification');
+      console.log('[EMAIL] ⚠ No email address provided - skipping email notification');
     }
 
     return successResponse(res, quotation, 'สร้างใบเสนอราคาสำเร็จ', 201);
@@ -470,11 +479,20 @@ export const convertToInvoice = async (
 
     if (fullInvoice && fullInvoice.customer?.email) {
       try {
-        const pdfBuffer = await pdfService.generateInvoicePDF(fullInvoice);
+        console.log(`[EMAIL] Attempting to send invoice email to: ${fullInvoice.customer.email}`);
+
+        let pdfBuffer: Buffer | undefined;
+        try {
+          pdfBuffer = await pdfService.generateInvoicePDF(fullInvoice);
+          console.log('[EMAIL] ✓ Invoice PDF generated successfully');
+        } catch (pdfError) {
+          console.error('[EMAIL] ✗ Invoice PDF generation failed (will send email without PDF):', pdfError instanceof Error ? pdfError.message : pdfError);
+        }
+
         await emailService.sendInvoiceToCustomer(fullInvoice, pdfBuffer);
-        console.log(`✓ Invoice email sent to customer`);
+        console.log(`[EMAIL] ✓ Invoice email sent to customer`);
       } catch (emailError) {
-        console.error('Error sending invoice email:', emailError);
+        console.error('[EMAIL] ✗ Error sending invoice email:', emailError instanceof Error ? emailError.message : emailError);
       }
     }
 
