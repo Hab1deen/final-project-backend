@@ -37,7 +37,7 @@ app.get('/', (req: Request, res: Response) => {
     message: 'ระบบจัดการเอกสารธุรกิจ API',
     status: 'Running',
     version: '1.0.0',
-    debugVersion: 'DEBUG-003-API-CHECK', // Exposed version for external verification
+    debugVersion: 'DEBUG-004-SMTP-FIX', // Updated for SMTP fix verification
     endpoints: {
       health: '/api/health',
       auth: '/api/auth',
