@@ -1,34 +1,16 @@
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 import { config } from 'dotenv';
 
 config();
 
 class EmailService {
-  private transporter;
+  private resend: Resend;
 
   constructor() {
-    this.transporter = nodemailer.createTransport({
-      host: 'smtp.gmail.com',
-      port: 465,
-      secure: true, // true for 465, false for other ports
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      },
-      tls: {
-        rejectUnauthorized: false
-      },
-      family: 4, // Force IPv4 to prevent IPv6 connectivity issues on Render
-    } as any);
-
-    // Verify connection
-    this.transporter.verify(function (error, success) {
-      if (error) {
-        console.error('[DEBUG] SMTP Connection Error:', error);
-      } else {
-        console.log('[DEBUG] SMTP Server is ready to take our messages');
-      }
-    });
+    if (!process.env.RESEND_API_KEY) {
+      console.warn('[WARN] RESEND_API_KEY is missing. Email sending will fail.');
+    }
+    this.resend = new Resend(process.env.RESEND_API_KEY);
   }
 
   // ส่ง email พื้นฐาน
@@ -40,20 +22,33 @@ class EmailService {
   ) {
     console.log(`[DEBUG] Preparing to send email to: ${to}`);
     try {
-      const mailOptions = {
-        from: `${process.env.SMTP_FROM_NAME} <${process.env.SMTP_FROM_EMAIL}>`,
-        to,
+      // Note: For Resend Free Tier without domain verification, you must send FROM 'onboarding@resend.dev'
+      // and TO your registered email only.
+      // Once domain is verified, you can use your own domain.
+      const fromName = process.env.SMTP_FROM_NAME || 'Business System';
+      // Fallback to onboarding@resend.dev if not using a verified domain yet to avoid 403 Forbidden
+      const fromEmail = 'onboarding@resend.dev';
+
+      const { data, error } = await this.resend.emails.send({
+        from: `${fromName} <${fromEmail}>`,
+        to: [to],
         subject,
         html,
-        attachments: attachments || [],
-      };
+        attachments: attachments,
+      });
 
-      const info = await this.transporter.sendMail(mailOptions);
-      console.log('Email sent:', info.messageId);
-      return info;
+      if (error) {
+        console.error('Error sending email:', error);
+        throw error;
+      }
+
+      console.log('Email sent successfully:', data?.id);
+      return data;
     } catch (error) {
       console.error('Error sending email:', error);
-      throw error;
+      // Don't throw to prevent crashing the main flow, just log it. 
+      // Or throw if critical. Let's return null to handle gracefully.
+      return null;
     }
   }
 
