@@ -8,12 +8,18 @@ class EmailService {
 
   constructor() {
     this.transporter = nodemailer.createTransport({
-      service: 'gmail',
+      host: 'smtp.gmail.com',
+      port: 587,
+      secure: false,
       auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
       },
-    });
+      tls: {
+        rejectUnauthorized: false
+      },
+      family: 4, // Force IPv4 to prevent IPv6 connectivity issues on Render
+    } as any);
 
     // Verify connection
     this.transporter.verify(function (error, success) {
