@@ -1,21 +1,18 @@
-import nodemailer from 'nodemailer';
+import Mailjet from 'node-mailjet';
 import { config } from 'dotenv';
 
 config();
 
 class EmailService {
-  private transporter: nodemailer.Transporter;
+  private mailjet: Mailjet;
 
   constructor() {
-    if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
-      console.warn('[WARN] SMTP_USER or SMTP_PASS is missing. Email sending will fail.');
+    if (!process.env.MAILJET_API_KEY || !process.env.MAILJET_SECRET_KEY) {
+      console.warn('[WARN] MAILJET_API_KEY or MAILJET_SECRET_KEY is missing. Email sending will fail.');
     }
-    this.transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      },
+    this.mailjet = new Mailjet({
+      apiKey: process.env.MAILJET_API_KEY || '',
+      apiSecret: process.env.MAILJET_SECRET_KEY || '',
     });
   }
 
@@ -29,30 +26,39 @@ class EmailService {
     console.log(`[DEBUG] Preparing to send email to: ${to}`);
     try {
       const fromName = process.env.SMTP_FROM_NAME || 'Easybill Online';
-      const fromEmail = process.env.SMTP_USER;
+      const fromEmail = process.env.MAILJET_FROM_EMAIL || 'habideen1111@gmail.com';
 
-      // แปลง attachments format จาก Resend → Nodemailer
-      const nodemailerAttachments = attachments?.map((att) => ({
-        filename: att.filename,
-        content: att.content,
-        contentType: att.contentType,
+      // แปลง attachments format → Mailjet format
+      const mailjetAttachments = attachments?.map((att) => ({
+        ContentType: att.contentType,
+        Filename: att.filename,
+        Base64Content: Buffer.isBuffer(att.content)
+          ? att.content.toString('base64')
+          : Buffer.from(att.content).toString('base64'),
       }));
 
-      const info = await this.transporter.sendMail({
-        from: `"${fromName}" <${fromEmail}>`,
-        to,
-        subject,
-        html,
-        attachments: nodemailerAttachments,
+      const response = await this.mailjet.post('send', { version: 'v3.1' }).request({
+        Messages: [
+          {
+            From: { Email: fromEmail, Name: fromName },
+            To: [{ Email: to }],
+            Subject: subject,
+            HTMLPart: html,
+            ...(mailjetAttachments && mailjetAttachments.length > 0
+              ? { Attachments: mailjetAttachments }
+              : {}),
+          },
+        ],
       });
 
-      console.log('Email sent successfully:', info.messageId);
-      return info;
+      console.log('Email sent successfully via Mailjet:', (response.body as any)?.Messages?.[0]?.Status);
+      return response.body;
     } catch (error) {
       console.error('Error sending email:', error);
       // ไม่ throw เพื่อไม่ให้ crash main flow
       return null;
     }
+
   }
 
   // ส่งใบเสนอราคาไปหาลูกค้า
