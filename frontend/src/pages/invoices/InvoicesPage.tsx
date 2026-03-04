@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { Plus, Eye, DollarSign, Search, Receipt } from "lucide-react";
+import { FileText, Search, Receipt } from "lucide-react";
 import { invoiceApi } from "../../services/api";
 import { useNavigate } from "react-router-dom";
+import Pagination from "../../components/common/Pagination";
 
 interface Invoice {
   id: number;
@@ -25,6 +26,9 @@ const InvoicesPage = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [totalItems, setTotalItems] = useState(0);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [paymentAmount, setPaymentAmount] = useState("");
@@ -47,6 +51,16 @@ const InvoicesPage = () => {
   useEffect(() => {
     fetchInvoices();
   }, []);
+
+  const handlePageChange = (newPage: number) => {
+    setPage(newPage);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleItemsPerPageChange = (newLimit: number) => {
+    setLimit(newLimit);
+    setPage(1);
+  };
 
   const openPaymentModal = (invoice: Invoice) => {
     setSelectedInvoice(invoice);
@@ -105,6 +119,11 @@ const InvoicesPage = () => {
     return matchSearch && matchStatus;
   });
 
+  // Paginate filtered invoices
+  const startIndex = (page - 1) * limit;
+  const endIndex = startIndex + limit;
+  const paginatedInvoices = filteredInvoices.slice(startIndex, endIndex);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -127,19 +146,19 @@ const InvoicesPage = () => {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div className="bg-white rounded-xl p-6 border border-gray-200">
           <div className="text-sm text-gray-600 mb-1">รอชำระ</div>
-          <div className="text-2xl font-bold text-yellow-600">
+          <div className="text-2xl font-bold text-gray-900">
             {invoices.filter((i) => i.status === "unpaid").length}
           </div>
         </div>
         <div className="bg-white rounded-xl p-6 border border-gray-200">
           <div className="text-sm text-gray-600 mb-1">ชำระบางส่วน</div>
-          <div className="text-2xl font-bold text-blue-600">
+          <div className="text-2xl font-bold text-gray-900">
             {invoices.filter((i) => i.status === "partial").length}
           </div>
         </div>
         <div className="bg-white rounded-xl p-6 border border-gray-200">
           <div className="text-sm text-gray-600 mb-1">ชำระแล้ว</div>
-          <div className="text-2xl font-bold text-green-600">
+          <div className="text-2xl font-bold text-gray-900">
             {invoices.filter((i) => i.status === "paid").length}
           </div>
         </div>
@@ -185,95 +204,86 @@ const InvoicesPage = () => {
         <table className="w-full">
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+              <th className="px-3 py-2 md:px-6 md:py-3 text-left text-xs font-medium text-gray-500 uppercase">
                 เลขที่
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+              <th className="px-3 py-2 md:px-6 md:py-3 text-left text-xs font-medium text-gray-500 uppercase">
                 ลูกค้า
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+              <th className="px-3 py-2 md:px-6 md:py-3 text-left text-xs font-medium text-gray-500 uppercase">
                 ยอดรวม
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+              <th className="px-3 py-2 md:px-6 md:py-3 text-left text-xs font-medium text-gray-500 uppercase">
                 ชำระแล้ว
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+              <th className="px-3 py-2 md:px-6 md:py-3 text-left text-xs font-medium text-gray-500 uppercase">
                 คงเหลือ
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+              <th className="px-3 py-2 md:px-6 md:py-3 text-left text-xs font-medium text-gray-500 uppercase">
                 สถานะ
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+              <th className="px-3 py-2 md:px-6 md:py-3 text-left text-xs font-medium text-gray-500 uppercase">
                 วันที่
               </th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+              <th className="px-3 py-2 md:px-6 md:py-3 text-right text-xs font-medium text-gray-500 uppercase">
                 จัดการ
               </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200">
-            {filteredInvoices.map((invoice) => (
+            {paginatedInvoices.map((invoice) => (
               <tr key={invoice.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4">
+                <td className="px-3 py-2 md:px-6 md:py-4">
                   <div className="flex items-center gap-2">
                     <Receipt className="w-4 h-4 text-gray-400" />
-                    <span className="font-medium text-gray-900">
+                    <span className="text-sm md:text-base font-medium text-gray-900">
                       {invoice.invoiceNo}
                     </span>
                   </div>
                 </td>
-                <td className="px-6 py-4">
+                <td className="px-3 py-2 md:px-6 md:py-4">
                   <div>
-                    <div className="font-medium text-gray-900">
+                    <div className="text-sm md:text-base font-medium text-gray-900">
                       {invoice.customerName}
                     </div>
                     {invoice.customerPhone && (
-                      <div className="text-sm text-gray-500">
+                      <div className="text-xs md:text-sm text-gray-500">
                         {invoice.customerPhone}
                       </div>
                     )}
                   </div>
                 </td>
-                <td className="px-6 py-4">
-                  <div className="font-semibold text-gray-900">
+                <td className="px-3 py-2 md:px-6 md:py-4">
+                  <div className="text-sm md:text-base font-semibold text-gray-900">
                     ฿{parseFloat(invoice.total).toLocaleString()}
                   </div>
                 </td>
-                <td className="px-6 py-4">
-                  <div className="font-semibold text-green-600">
+                <td className="px-3 py-2 md:px-6 md:py-4">
+                  <div className="text-sm md:text-base font-semibold text-green-600">
                     ฿{parseFloat(invoice.paidAmount).toLocaleString()}
                   </div>
                 </td>
-                <td className="px-6 py-4">
-                  <div className="font-semibold text-red-600">
+                <td className="px-3 py-2 md:px-6 md:py-4">
+                  <div className="text-sm md:text-base font-semibold text-red-600">
                     ฿{parseFloat(invoice.remainingAmount).toLocaleString()}
                   </div>
                 </td>
-                <td className="px-6 py-4">{getStatusBadge(invoice.status)}</td>
-                <td className="px-6 py-4 text-gray-600">
+                <td className="px-3 py-2 md:px-6 md:py-4">{getStatusBadge(invoice.status)}</td>
+                <td className="px-3 py-2 md:px-6 md:py-4 text-xs md:text-sm text-gray-600">
                   {new Date(invoice.createdAt).toLocaleDateString("th-TH", {
                     year: "numeric",
                     month: "short",
                     day: "numeric",
                   })}
                 </td>
-                <td className="px-6 py-4">
-                  <div className="flex items-center justify-end gap-2">
-                    {invoice.status !== "paid" && (
-                      <button
-                        onClick={() => openPaymentModal(invoice)}
-                        className="flex items-center gap-1 px-3 py-1 text-sm text-green-600 bg-green-50 rounded-lg hover:bg-green-100 transition-colors"
-                      >
-                        <DollarSign className="w-4 h-4" />
-                        รับชำระ
-                      </button>
-                    )}
+                <td className="px-3 py-2 md:px-6 md:py-4">
+                  <div className="flex items-center justify-end gap-1 md:gap-2">
                     <button
                       onClick={() => navigate(`/invoices/${invoice.id}`)}
-                      className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                      className="p-1.5 md:p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
                       title="ดูรายละเอียด"
                     >
-                      <Eye className="w-4 h-4" />
+                      <FileText className="w-4 h-4" />
                     </button>
                   </div>
                 </td>
@@ -372,6 +382,18 @@ const InvoicesPage = () => {
             </form>
           </div>
         </div>
+      )}
+
+      {/* Pagination */}
+      {filteredInvoices.length > 0 && Math.ceil(filteredInvoices.length / limit) > 1 && (
+        <Pagination
+          currentPage={page}
+          totalPages={Math.ceil(filteredInvoices.length / limit)}
+          totalItems={filteredInvoices.length}
+          itemsPerPage={limit}
+          onPageChange={handlePageChange}
+          onItemsPerPageChange={handleItemsPerPageChange}
+        />
       )}
     </div>
   );

@@ -12,60 +12,180 @@ body {
   font-family: 'Inter', system-ui, sans-serif;
 }
 
-/* Print Styles */
+/* Root Font Sizes */
+html.font-small { font-size: 14px; }
+html.font-medium { font-size: 16px; }
+html.font-large { font-size: 18px; }
+
+/* Adjust body font size relative to root */
+body {
+  font-size: 1rem;
+}
+
+/* PDF Export Styles */
 @media print {
   @page {
     size: A4;
-    margin: 0;
+    margin: 1cm;
   }
 
   body {
-    background: white;
+    background: white !important;
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
   }
 
-  /* Hide non-document elements */
+  /* ซ่อนส่วนที่ไม่ต้องการ */
+  .no-print,
+  nav,
+  header,
+  .sidebar,
+  button:not(.print-keep),
   .print\:hidden {
     display: none !important;
   }
 
-  /* Remove shadows and borders */
-  .print\:shadow-none {
-    box-shadow: none !important;
+  /* Force show elements */
+  .print\:block {
+    display: block !important;
   }
 
-  .print\:rounded-none {
-    border-radius: 0 !important;
+  /* ปรับ spacing */
+  .print\:my-0 {
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
   }
 
-  /* Adjust padding for print */
-  .print\:p-8 {
-    padding: 2rem !important;
+  .print\:p-0 {
+    padding: 0 !important;
   }
 
-  /* Ensure colors print correctly */
-  * {
-    print-color-adjust: exact !important;
-    -webkit-print-color-adjust: exact !important;
-  }
-
-  /* Force page breaks */
-  .print\:break-inside-avoid {
+  /* ป้องกันการแบ่งหน้า */
+  .print\:break-inside-avoid,
+  table,
+  .signature-section,
+  .appointment-section,
+  .payment-history {
+    page-break-inside: avoid;
     break-inside: avoid;
   }
 
-  /* Hide everything except document */
-  body > div:first-child > div:first-child > div:not(:last-child) {
-    display: none !important;
-  }
-
-  /* Ensure table borders print */
+  /* ตาราง */
   table {
-    border-collapse: collapse !important;
+    border-collapse: collapse;
   }
 
-  td, th {
-    border: 1px solid #d1d5db !important;
+  table td,
+  table th {
+    border: 1px solid #ddd;
   }
+
+  /* รูปภาพ */
+  img {
+    max-width: 100%;
+    page-break-inside: avoid;
+  }
+
+  /* ซิกเนเจอร์ */
+  .signature-section img {
+    max-height: 100px;
+  }
+
+  /* ฟอนต์ */
+  body, p, span, div {
+    font-family: 'Sarabun', 'Arial', sans-serif;
+  }
+
+  /* Links */
+  a[href]:after {
+    content: none !important;
+  }
+}
+
+/* Smooth transitions */
+* {
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Scrollbar styles */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* Blob Animation for Login/Register */
+@keyframes blob {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+  25% {
+    transform: translate(20px, -50px) scale(1.1);
+  }
+  50% {
+    transform: translate(-20px, 20px) scale(0.9);
+  }
+  75% {
+    transform: translate(50px, 50px) scale(1.05);
+  }
+}
+
+.animate-blob {
+  animation: blob 7s infinite;
+}
+
+.animation-delay-2000 {
+  animation-delay: 2s;
+}
+
+.animation-delay-4000 {
+  animation-delay: 4s;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f3f4f6;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+/* Smooth Transitions */
+* {
+  transition-property: background-color, border-color, color, fill, stroke;
+  transition-duration: 150ms;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Card Hover Effect */
+.card-hover {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.card-hover:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
 }
