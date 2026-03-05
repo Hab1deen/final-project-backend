@@ -540,7 +540,7 @@ class EmailService {
   }
 
   // ส่งใบแจ้งหนี้ไปหาลูกค้า
-  async sendInvoiceToCustomer(invoice: any, pdfBuffer?: Buffer) {
+  async sendInvoiceToCustomer(invoice: any, pdfBuffer?: Buffer, customerEmail?: string) {
     const html = `
       <!DOCTYPE html>
       <html>
@@ -833,7 +833,7 @@ class EmailService {
       : [];
 
     await this.sendEmail(
-      invoice.customer?.email || invoice.customerEmail,
+      customerEmail || invoice.customer?.email || invoice.customerEmail,
       `ใบแจ้งหนี้ #${invoice.invoiceNo} จาก ${process.env.SMTP_FROM_NAME} `,
       html,
       attachments

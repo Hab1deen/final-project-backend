@@ -21,6 +21,7 @@ import QuotationDetailPage from "./pages/quotations/QuotationDetailPage";
 import CreateQuotationPage from "./pages/quotations/CreateQuotationPage";
 import InvoicesPage from "./pages/invoices/InvoicesPage";
 import InvoiceDetailPage from "./pages/invoices/InvoiceDetailPage";
+import CreateInvoicePage from "./pages/invoices/CreateInvoicePage";
 import PaymentPage from "./pages/invoices/PaymentPage";
 import ProductsPage from "./pages/products/ProductsPage";
 import CustomersPage from "./pages/customers/CustomersPage";
@@ -68,6 +69,7 @@ function App() {
 
                       {/* Invoices */}
                       <Route path="/invoices" element={<InvoicesPage />} />
+                      <Route path="/invoices/create" element={<CreateInvoicePage />} />
                       <Route path="/invoices/:id" element={<InvoiceDetailPage />} />
                       <Route path="/invoices/:id/payment" element={<PaymentPage />} />
 

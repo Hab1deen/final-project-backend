@@ -4,6 +4,8 @@ import { successResponse } from '../utils/response';
 import { AppError } from '../middlewares/errorHandler';
 import { getPaginationParams, createPaginatedResponse } from '../utils/paginationHelper';
 import { emailNotificationService } from '../services/emailNotification.service';
+import emailService from '../services/email.service';
+import pdfService from '../services/pdf.service';
 
 // ดึงใบแจ้งหนี้ทั้งหมด
 export const getAllInvoices = async (
@@ -104,6 +106,7 @@ export const createInvoice = async (
       quotationId,
       customerId,
       customerName,
+      customerEmail,
       customerPhone,
       customerAddress,
       items,
@@ -187,9 +190,6 @@ export const createInvoice = async (
         workImages: workImages,                 // รูป After (ถ้ามีส่งมา)
         acceptanceSignature: acceptanceSignature, // ลายเซ็นรับงาน (ถ้ามีส่งมา)
 
-        // กรณีแปลงจาก Quotation อาจจะดึงรูป Before มาเก็บไว้ด้วยก็ได้ 
-        // หรือจะปล่อยให้ Linked กันผ่าน quotationId ก็ได้ (เลือกแบบ Linked ประหยัดที่กว่า)
-
         items: {
           create: itemsData
         }
@@ -197,15 +197,37 @@ export const createInvoice = async (
       include: {
         customer: true,
         items: true,
-        quotation: true // include quotation เพื่อดูรูป Before
+        quotation: true
       }
     });
+
+    // ส่งอีเมลแจ้งลูกค้า (ถ้าสร้างตรง ไม่ผ่าน quotation)
+    if (!quotationId) {
+      const emailToSend = customerEmail || (invoice as any).customer?.email;
+      if (emailToSend) {
+        try {
+          console.log(`[EMAIL] Attempting to send invoice email to: ${emailToSend}`);
+          let pdfBuffer: Buffer | undefined;
+          try {
+            pdfBuffer = await pdfService.generateInvoicePDF(invoice as any);
+            console.log('[EMAIL] ✓ Invoice PDF generated successfully');
+          } catch (pdfError) {
+            console.error('[EMAIL] ✗ Invoice PDF generation failed (will send without PDF):', pdfError instanceof Error ? pdfError.message : pdfError);
+          }
+          await emailService.sendInvoiceToCustomer(invoice as any, pdfBuffer, emailToSend);
+          console.log(`[EMAIL] ✓ Invoice email sent successfully to ${emailToSend}`);
+        } catch (emailError) {
+          console.error('[EMAIL] ✗ Error sending invoice email:', emailError instanceof Error ? emailError.message : emailError);
+        }
+      }
+    }
 
     return successResponse(res, invoice, 'สร้างใบแจ้งหนี้สำเร็จ', 201);
   } catch (error) {
     next(error);
   }
 };
+
 
 // แก้ไขใบแจ้งหนี้
 export const updateInvoice = async (

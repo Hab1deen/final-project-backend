@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { FileText, Search, Receipt } from "lucide-react";
+import { FileText, Search, Receipt, Plus } from "lucide-react";
 import { invoiceApi } from "../../services/api";
 import { useNavigate } from "react-router-dom";
 import Pagination from "../../components/common/Pagination";
@@ -140,6 +140,13 @@ const InvoicesPage = () => {
           <h1 className="text-2xl font-bold text-gray-900">ใบแจ้งหนี้</h1>
           <p className="text-gray-600">ทั้งหมด {invoices.length} รายการ</p>
         </div>
+        <button
+          onClick={() => navigate("/invoices/create")}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+        >
+          <Plus className="w-4 h-4" />
+          <span>สร้างใบแจ้งหนี้</span>
+        </button>
       </div>
 
       {/* Stats */}
