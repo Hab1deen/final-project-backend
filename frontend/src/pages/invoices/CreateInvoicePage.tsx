@@ -12,10 +12,25 @@ interface InvoiceItem {
   price: number;
 }
 
+interface CustomerOption {
+  id: number;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  address: string | null;
+}
+
+interface ProductOption {
+  id: number;
+  name: string;
+  price: string;
+  description: string | null;
+}
+
 const CreateInvoicePage = () => {
   const navigate = useNavigate();
-  const [customers, setCustomers] = useState<any[]>([]);
-  const [products, setProducts] = useState<any[]>([]);
+  const [customers, setCustomers] = useState<CustomerOption[]>([]);
+  const [products, setProducts] = useState<ProductOption[]>([]);
   const [loading, setLoading] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -82,10 +97,10 @@ const CreateInvoicePage = () => {
     setItems(items.filter((_, i) => i !== index));
   };
 
-  const updateItem = (index: number, field: string, value: any) => {
+  const updateItem = (index: number, field: string, value: string | number) => {
     const newItems = [...items];
     if (field === "productId") {
-      const product = products.find((p) => p.id === parseInt(value));
+      const product = products.find((p) => p.id === parseInt(String(value)));
       if (product) {
         newItems[index] = {
           ...newItems[index],
@@ -154,10 +169,11 @@ const CreateInvoicePage = () => {
           : "สร้างใบแจ้งหนี้สำเร็จ"
       );
       navigate("/invoices");
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error creating invoice:", error);
+      const axiosError = error as { response?: { data?: { message?: string } } };
       showError(
-        error.response?.data?.message || "เกิดข้อผิดพลาดในการสร้างใบแจ้งหนี้"
+        axiosError.response?.data?.message || "เกิดข้อผิดพลาดในการสร้างใบแจ้งหนี้"
       );
     } finally {
       setLoading(false);
@@ -273,7 +289,7 @@ const CreateInvoicePage = () => {
               />
             </div>
 
-            <div className="md:col-span-2">
+            {/* <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 วันครบกำหนดชำระ
               </label>
@@ -285,7 +301,7 @@ const CreateInvoicePage = () => {
                 }
                 className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
-            </div>
+            </div> */}
           </div>
         </div>
 

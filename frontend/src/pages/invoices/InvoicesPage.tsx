@@ -28,12 +28,6 @@ const InvoicesPage = () => {
   const [filterStatus, setFilterStatus] = useState("all");
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
-  const [totalItems, setTotalItems] = useState(0);
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
-  const [paymentAmount, setPaymentAmount] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState("cash");
-  const [paymentNotes, setPaymentNotes] = useState("");
 
   const fetchInvoices = async () => {
     try {
@@ -62,37 +56,10 @@ const InvoicesPage = () => {
     setPage(1);
   };
 
-  const openPaymentModal = (invoice: Invoice) => {
-    setSelectedInvoice(invoice);
-    setPaymentAmount(invoice.remainingAmount);
-    setPaymentMethod("cash");
-    setPaymentNotes("");
-    setShowPaymentModal(true);
-  };
 
-  const handleRecordPayment = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!selectedInvoice) return;
-
-    try {
-      await invoiceApi.recordPayment(selectedInvoice.id, {
-        amount: parseFloat(paymentAmount),
-        paymentMethod,
-        notes: paymentNotes,
-      });
-
-      alert("บันทึกการชำระเงินสำเร็จ");
-      setShowPaymentModal(false);
-      fetchInvoices();
-    } catch (error) {
-      console.error("Error recording payment:", error);
-      alert("เกิดข้อผิดพลาดในการบันทึกการชำระเงิน");
-    }
-  };
 
   const getStatusBadge = (status: string) => {
-    const statusConfig: any = {
+    const statusConfig: Record<string, { label: string; color: string }> = {
       unpaid: { label: "รอชำระ", color: "bg-yellow-100 text-yellow-800" },
       partial: { label: "ชำระบางส่วน", color: "bg-blue-100 text-blue-800" },
       paid: { label: "ชำระแล้ว", color: "bg-green-100 text-green-800" },
@@ -304,92 +271,7 @@ const InvoicesPage = () => {
         )}
       </div>
 
-      {/* Payment Modal */}
-      {showPaymentModal && selectedInvoice && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl p-6 w-full max-w-md">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">
-              บันทึกการรับชำระเงิน
-            </h2>
 
-            <div className="mb-4 p-4 bg-gray-50 rounded-lg">
-              <div className="text-sm text-gray-600 mb-1">เลขที่ใบแจ้งหนี้</div>
-              <div className="font-semibold text-gray-900">
-                {selectedInvoice.invoiceNo}
-              </div>
-              <div className="text-sm text-gray-600 mt-2">
-                ลูกค้า: {selectedInvoice.customerName}
-              </div>
-              <div className="text-sm text-gray-600">
-                ยอดคงเหลือ: ฿
-                {parseFloat(selectedInvoice.remainingAmount).toLocaleString()}
-              </div>
-            </div>
-
-            <form onSubmit={handleRecordPayment} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  จำนวนเงินที่รับ *
-                </label>
-                <input
-                  type="number"
-                  required
-                  step="0.01"
-                  min="0.01"
-                  max={selectedInvoice.remainingAmount}
-                  value={paymentAmount}
-                  onChange={(e) => setPaymentAmount(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  วิธีการชำระ
-                </label>
-                <select
-                  value={paymentMethod}
-                  onChange={(e) => setPaymentMethod(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="cash">เงินสด</option>
-                  <option value="transfer">โอนเงิน</option>
-                  <option value="credit">บัตรเครดิต</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  หมายเหตุ
-                </label>
-                <textarea
-                  value={paymentNotes}
-                  onChange={(e) => setPaymentNotes(e.target.value)}
-                  rows={2}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="เลขที่อ้างอิง, หมายเหตุเพิ่มเติม..."
-                />
-              </div>
-
-              <div className="flex gap-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setShowPaymentModal(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  ยกเลิก
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                >
-                  บันทึกการชำระ
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* Pagination */}
       {filteredInvoices.length > 0 && Math.ceil(filteredInvoices.length / limit) > 1 && (

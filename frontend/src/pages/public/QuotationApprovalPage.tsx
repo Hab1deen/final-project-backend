@@ -169,8 +169,9 @@ const QuotationApprovalPage = () => {
             setLoading(true);
             const response = await axios.get(`${config.apiBaseUrl}/api/public/quotations/${token}`);
             setQuotation(response.data.data);
-        } catch (err: any) {
-            setError(err.response?.data?.message || 'ไม่พบใบเสนอราคา');
+        } catch (err) {
+            const axiosErr = err as { response?: { data?: { message?: string } } };
+            setError(axiosErr.response?.data?.message || 'ไม่พบใบเสนอราคา');
         } finally {
             setLoading(false);
         }
@@ -193,8 +194,9 @@ const QuotationApprovalPage = () => {
             setShowAction(null);
             setNotes('');
             setSignatureData(null);
-        } catch (err: any) {
-            alert(err.response?.data?.message || 'เกิดข้อผิดพลาด');
+        } catch (err) {
+            const axiosErr = err as { response?: { data?: { message?: string } } };
+            alert(axiosErr.response?.data?.message || 'เกิดข้อผิดพลาด');
         } finally {
             setSubmitting(false);
         }
@@ -214,8 +216,9 @@ const QuotationApprovalPage = () => {
             await fetchQuotation();
             setShowAction(null);
             setNotes('');
-        } catch (err: any) {
-            alert(err.response?.data?.message || 'เกิดข้อผิดพลาด');
+        } catch (err) {
+            const axiosErr = err as { response?: { data?: { message?: string } } };
+            alert(axiosErr.response?.data?.message || 'เกิดข้อผิดพลาด');
         } finally {
             setSubmitting(false);
         }
@@ -446,8 +449,8 @@ const QuotationApprovalPage = () => {
                                     )}
                                     {/* Shop Signatures */}
                                     {quotation.signatures
-                                        ?.filter((sig: any) => sig.type === 'shop')
-                                        .map((signature: any) => (
+                                        ?.filter((sig) => sig.type === 'shop')
+                                        .map((signature) => (
                                             <div key={signature.id} className="text-center">
                                                 <div className="border border-gray-300 rounded p-2 bg-white min-h-[80px] flex items-center justify-center">
                                                     <img
