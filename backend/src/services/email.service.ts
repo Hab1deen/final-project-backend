@@ -4,13 +4,14 @@ import { config } from 'dotenv';
 config();
 
 class EmailService {
-  private resend: Resend;
+  private resend: Resend | null = null;
 
   constructor() {
-    if (!process.env.RESEND_API_KEY) {
-      console.warn('[WARN] RESEND_API_KEY is missing. Email sending will fail.');
+    if (process.env.RESEND_API_KEY) {
+      this.resend = new Resend(process.env.RESEND_API_KEY);
+    } else {
+      console.warn('[WARN] RESEND_API_KEY is missing. Email sending will be disabled.');
     }
-    this.resend = new Resend(process.env.RESEND_API_KEY || '');
   }
 
   // ส่ง email พื้นฐาน
@@ -20,6 +21,10 @@ class EmailService {
     html: string,
     attachments?: any[]
   ) {
+    if (!this.resend) {
+      console.error('[EMAIL] Resend not initialized — RESEND_API_KEY is missing');
+      return null;
+    }
     console.log(`[DEBUG] Preparing to send email to: ${to}`);
     try {
       const fromName = process.env.SMTP_FROM_NAME || 'Easybill Online';
