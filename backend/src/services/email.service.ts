@@ -1,19 +1,16 @@
-import Mailjet from 'node-mailjet';
+import { Resend } from 'resend';
 import { config } from 'dotenv';
 
 config();
 
 class EmailService {
-  private mailjet: Mailjet;
+  private resend: Resend;
 
   constructor() {
-    if (!process.env.MAILJET_API_KEY || !process.env.MAILJET_SECRET_KEY) {
-      console.warn('[WARN] MAILJET_API_KEY or MAILJET_SECRET_KEY is missing. Email sending will fail.');
+    if (!process.env.RESEND_API_KEY) {
+      console.warn('[WARN] RESEND_API_KEY is missing. Email sending will fail.');
     }
-    this.mailjet = new Mailjet({
-      apiKey: process.env.MAILJET_API_KEY || '',
-      apiSecret: process.env.MAILJET_SECRET_KEY || '',
-    });
+    this.resend = new Resend(process.env.RESEND_API_KEY || '');
   }
 
   // ส่ง email พื้นฐาน
@@ -26,39 +23,37 @@ class EmailService {
     console.log(`[DEBUG] Preparing to send email to: ${to}`);
     try {
       const fromName = process.env.SMTP_FROM_NAME || 'Easybill Online';
-      const fromEmail = process.env.MAILJET_FROM_EMAIL || 'habideen1111@gmail.com';
+      // ใช้ custom domain เมื่อมี, fallback ไป onboarding@resend.dev
+      const fromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
 
-      // แปลง attachments format → Mailjet format
-      const mailjetAttachments = attachments?.map((att) => ({
-        ContentType: att.contentType,
-        Filename: att.filename,
-        Base64Content: Buffer.isBuffer(att.content)
-          ? att.content.toString('base64')
-          : Buffer.from(att.content).toString('base64'),
+      // แปลง attachments format → Resend format
+      const resendAttachments = attachments?.map((att) => ({
+        filename: att.filename,
+        content: Buffer.isBuffer(att.content)
+          ? att.content
+          : Buffer.from(att.content),
       }));
 
-      const response = await this.mailjet.post('send', { version: 'v3.1' }).request({
-        Messages: [
-          {
-            From: { Email: fromEmail, Name: fromName },
-            To: [{ Email: to }],
-            Subject: subject,
-            HTMLPart: html,
-            ...(mailjetAttachments && mailjetAttachments.length > 0
-              ? { Attachments: mailjetAttachments }
-              : {}),
-          },
-        ],
+      const { data, error } = await this.resend.emails.send({
+        from: `${fromName} <${fromEmail}>`,
+        to: [to],
+        subject,
+        html,
+        attachments: resendAttachments,
       });
 
-      console.log('Email sent successfully via Mailjet:', (response.body as any)?.Messages?.[0]?.Status);
-      return response.body;
+      if (error) {
+        console.error('Resend error:', error);
+        return null;
+      }
+
+      console.log('Email sent successfully via Resend:', data?.id);
+      return data;
     } catch (error) {
       console.error('Error sending email:', error);
       // ไม่ throw เพื่อไม่ให้ crash main flow
       return null;
     }
-
   }
 
   // ส่งใบเสนอราคาไปหาลูกค้า
