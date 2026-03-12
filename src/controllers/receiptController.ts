@@ -13,7 +13,19 @@ export const getAllReceipts = async (
   next: NextFunction
 ) => {
   try {
+    // ดึงข้อมูลผู้ใช้
+    const user = (req as any).user;
+    const isAdmin = user?.role === 'admin';
+
+    let where: any = {};
+    
+    // ถ้าไม่ใช่ admin ให้กรองเฉพาะของผู้ใช้คนนั้น
+    if (!isAdmin && user) {
+      where.userId = user.id;
+    }
+
     const receipts = await prisma.receipt.findMany({
+      where,
       orderBy: { createdAt: 'desc' },
       include: {
         invoice: {

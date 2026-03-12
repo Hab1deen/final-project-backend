@@ -1,4 +1,5 @@
 import express from 'express';
+import { authenticate } from '../middlewares/authMiddleware';
 import {
   getAllInvoices,
   getInvoiceById,
@@ -9,17 +10,16 @@ import {
   deleteInvoice,
   addSignature  // เพิ่มบรรทัดนี้
 } from '../controllers/invoiceController';
-import { authenticate } from '../middlewares/authMiddleware';
 
 const router = express.Router();
 
-router.get('/', getAllInvoices);
-router.get('/:id', getInvoiceById);
-router.post('/', createInvoice);
-router.put('/:id', updateInvoice);           // เพิ่มบรรทัดนี้
-router.patch('/:id/status', updateInvoiceStatus);
+router.get('/', authenticate, getAllInvoices);
+router.get('/:id', authenticate, getInvoiceById);
+router.post('/', authenticate, createInvoice);
+router.put('/:id', authenticate, updateInvoice);           // เพิ่มบรรทัดนี้
+router.patch('/:id/status', authenticate, updateInvoiceStatus);
 router.post('/:id/payments', authenticate, recordPayment); // เพิ่ม authenticate
-router.delete('/:id', deleteInvoice);
-router.post('/:id/signature', addSignature);  // เพิ่มบรรทัดนี้
+router.delete('/:id', authenticate, deleteInvoice);
+router.post('/:id/signature', authenticate, addSignature);  // เพิ่มบรรทัดนี้
 
 export default router;

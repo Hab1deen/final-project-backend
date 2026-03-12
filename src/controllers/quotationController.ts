@@ -18,8 +18,17 @@ export const getAllQuotations = async (
     const { status, page, limit } = req.query;
     const { skip, take, page: currentPage, limit: pageLimit } = getPaginationParams({ page, limit });
 
+    // ดึงข้อมูลผู้ใช้
+    const user = (req as any).user;
+    const isAdmin = user?.role === 'admin';
+
     // สร้าง where clause
-    const where = status ? { status: status as string } : {};
+    let where: any = status ? { status: status as string } : {};
+    
+    // ถ้าไม่ใช่ admin ให้กรองเฉพาะของผู้ใช้คนนั้น
+    if (!isAdmin && user) {
+      where.userId = user.id;
+    }
 
     // นับจำนวนทั้งหมด
     const total = await prisma.quotation.count({ where });
@@ -102,6 +111,12 @@ export const createQuotation = async (
 ) => {
   console.log('[DEBUG] createQuotation endpoint called');
   try {
+    // ดึง userId จาก middleware
+    const userId = (req as any).user?.id;
+    if (!userId) {
+      throw new AppError('ไม่พบข้อมูลผู้ใช้ กรุณาเข้าสู่ระบบใหม่', 401);
+    }
+
     const {
       customerId,
       customerName,
@@ -184,6 +199,7 @@ export const createQuotation = async (
         customerName,
         customerPhone,
         customerAddress,
+        userId, // เพิ่ม userId
         subtotal,
         discount: discountAmount,
         vat: vatPercent,
@@ -233,8 +249,14 @@ export const createQuotation = async (
       try {
         console.log(`[EMAIL] Attempting to send email to: ${emailToSend}`);
 
-        // ข้าม PDF generation บน Free tier — ส่งแค่อีเมล HTML อย่างเดียว
-        const pdfBuffer = undefined;
+        // Generate PDF แนบไปกับอีเมล
+        let pdfBuffer: Buffer | undefined;
+        try {
+          pdfBuffer = await pdfService.generateQuotationPDF(createdQuotation);
+          console.log('[EMAIL] ✓ Quotation PDF generated successfully');
+        } catch (pdfError) {
+          console.error('[EMAIL] ✗ Quotation PDF generation failed (will send email without PDF):', pdfError instanceof Error ? pdfError.message : pdfError);
+        }
 
         await emailService.sendQuotationToCustomer(createdQuotation, pdfBuffer, emailToSend);
         console.log(`[EMAIL] ✓ Email sent successfully to ${emailToSend}`);

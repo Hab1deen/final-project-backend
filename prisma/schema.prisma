@@ -24,6 +24,8 @@ model User {
   updatedAt DateTime @updatedAt
   
   receipts  Receipt[] // ความสัมพันธ์กับใบเสร็จ (ผู้ออกใบเสร็จ)
+  quotations Quotation[] // ความสัมพันธ์กับใบเสนอราคา (ผู้สร้าง)
+  invoices   Invoice[]   // ความสัมพันธ์กับใบแจ้งหนี้ (ผู้สร้าง)
   signatureTemplates SignatureTemplate[] // เทมเพลตลายเซ็น
   emailVerificationTokens EmailVerificationToken[]
   passwordResetTokens PasswordResetToken[]
@@ -76,6 +78,7 @@ model Quotation {
   customerName    String
   customerPhone   String?
   customerAddress String?
+  userId          Int      // ผู้สร้างใบเสนอราคา
 
   subtotal Decimal @db.Decimal(10, 2)
   discount Decimal @default(0) @db.Decimal(10, 2)
@@ -99,6 +102,7 @@ model Quotation {
   updatedAt DateTime @updatedAt
 
   customer   Customer?            @relation(fields: [customerId], references: [id])
+  user       User                 @relation(fields: [userId], references: [id])
   items      QuotationItem[]
   images     QuotationImage[]
   signatures QuotationSignature[]
@@ -160,6 +164,7 @@ model Invoice {
   customerName    String
   customerPhone   String?
   customerAddress String?
+  userId          Int      // ผู้สร้างใบแจ้งหนี้
 
   subtotal Decimal @db.Decimal(10, 2)
   discount Decimal @default(0) @db.Decimal(10, 2)
@@ -183,12 +188,12 @@ model Invoice {
   updatedAt DateTime @updatedAt
 
   customer     Customer?          @relation(fields: [customerId], references: [id])
+  user         User               @relation(fields: [userId], references: [id])
   quotation    Quotation?         @relation(fields: [quotationId], references: [id])
   items        InvoiceItem[]
   images       InvoiceImage[]
   signatures   InvoiceSignature[]
   payments     Payment[]
-  appointments Appointment[]
   receipts     Receipt[]
 
   @@map("invoices")
@@ -244,40 +249,16 @@ model Payment {
   invoiceId     Int
   amount        Decimal  @db.Decimal(10, 2)
   paymentDate   DateTime @default(now())
-  paymentMethod String   @default("cash") // cash, transfer, credit
+  paymentMethod String   @default("cash") // cash, transfer, credit_card, bank_transfer
+  paymentSlip   String?  @db.Text // URL ของสลิปการโอนเงิน
+  transferredAt DateTime? // วันเวลาที่โอนเงิน (ตามที่ระบุในสลิป)
+  bankName      String?  // ชื่อธนาคารที่โอน (ถ้าเป็น bank_transfer)
   notes         String?
   createdAt     DateTime @default(now())
 
   invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
 
   @@map("payments")
-}
-
-// ตารางนัดหมาย
-model Appointment {
-  id              Int      @id @default(autoincrement())
-  invoiceId       Int?
-  title           String
-  description     String?
-  appointmentDate DateTime
-  startTime       String?
-  endTime         String?
-  appointmentType String   // installation, payment, other
-  status          String   @default("pending") // pending, completed, cancelled
-
-  location      String?
-  contactPerson String?
-  contactPhone  String?
-
-  notes        String?
-  reminderSent Boolean @default(false)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  invoice Invoice? @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-
-  @@map("appointments")
 }
 
 // ตารางใบเสร็จรับเงิน

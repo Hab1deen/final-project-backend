@@ -48,7 +48,7 @@ router.get('/quotations/:token', async (req: Request, res: Response) => {
 router.post('/quotations/:token/approve', async (req: Request, res: Response) => {
     try {
         const { token } = req.params;
-        const { notes } = req.body;
+        const { notes, customerSignature } = req.body;
 
         const quotation = await prisma.quotation.findUnique({
             where: { approvalToken: token },
@@ -78,7 +78,8 @@ router.post('/quotations/:token/approve', async (req: Request, res: Response) =>
                 approvalStatus: 'approved',
                 approvedAt: new Date(),
                 approvalNotes: notes || null,
-                status: 'accepted', // อัปเดต status หลักด้วย
+                status: 'accepted',
+                customerSignature: customerSignature || null,
             },
             include: {
                 customer: true,

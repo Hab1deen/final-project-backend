@@ -10,13 +10,13 @@ import quotationRoutes from './routes/quotationRoutes';
 import invoiceRoutes from './routes/invoiceRoutes';
 import receiptRoutes from './routes/receiptRoutes';
 import uploadRoutes from './routes/uploadRoutes';
-import appointmentRoutes from './routes/appointmentRoutes';
 import signatureTemplateRoutes from './routes/signatureTemplateRoutes';
 import approvalRoutes from './routes/approval.routes';
 import emailRoutes from './routes/email.routes';
 import emailVerificationRoutes from './routes/emailVerificationRoutes';
 import passwordResetRoutes from './routes/passwordResetRoutes';
 import loginHistoryRoutes from './routes/loginHistoryRoutes';
+import paymentRoutes from './routes/paymentRoutes';
 import { errorHandler } from './middlewares/errorHandler';
 
 dotenv.config();
@@ -71,8 +71,8 @@ app.use('/api/customers', customerRoutes);
 app.use('/api/quotations', quotationRoutes);
 app.use('/api/invoices', invoiceRoutes);
 app.use('/api/receipts', receiptRoutes);
+app.use('/api/payments', paymentRoutes); // Payment routes
 app.use('/api/upload', uploadRoutes);
-app.use('/api/appointments', appointmentRoutes);
 app.use('/api/signature-templates', signatureTemplateRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
@@ -95,7 +95,6 @@ app.listen(PORT, () => {
   console.log(`🧾 Invoices: http://localhost:${PORT}/api/invoices`);
   console.log(`🧾 Receipts: http://localhost:${PORT}/api/receipts`);
   console.log(`📸 Upload: http://localhost:${PORT}/api/upload`);
-  console.log(`📅 Appointments: http://localhost:${PORT}/api/appointments`);
 });
 
 export default app;

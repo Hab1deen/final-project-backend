@@ -4,6 +4,8 @@ import { successResponse } from '../utils/response';
 import { AppError } from '../middlewares/errorHandler';
 import { getPaginationParams, createPaginatedResponse } from '../utils/paginationHelper';
 import { emailNotificationService } from '../services/emailNotification.service';
+import emailService from '../services/email.service';
+import pdfService from '../services/pdf.service';
 
 // ดึงใบแจ้งหนี้ทั้งหมด
 export const getAllInvoices = async (
@@ -15,7 +17,16 @@ export const getAllInvoices = async (
     const { status, page, limit } = req.query;
     const { skip, take, page: currentPage, limit: pageLimit } = getPaginationParams({ page, limit });
 
-    const where = status ? { status: status as string } : {};
+    // ดึงข้อมูลผู้ใช้
+    const user = (req as any).user;
+    const isAdmin = user?.role === 'admin';
+
+    let where: any = status ? { status: status as string } : {};
+    
+    // ถ้าไม่ใช่ admin ให้กรองเฉพาะของผู้ใช้คนนั้น
+    if (!isAdmin && user) {
+      where.userId = user.id;
+    }
 
     const total = await prisma.invoice.count({ where });
 
@@ -79,8 +90,7 @@ export const getInvoiceById = async (
         signatures: true,
         payments: {
           orderBy: { createdAt: 'desc' }
-        },
-        appointments: true
+        }
       }
     });
 
@@ -101,10 +111,17 @@ export const createInvoice = async (
   next: NextFunction
 ) => {
   try {
+    // ดึง userId จาก middleware
+    const userId = (req as any).user?.id;
+    if (!userId) {
+      throw new AppError('ไม่พบข้อมูลผู้ใช้ กรุณาเข้าสู่ระบบใหม่', 401);
+    }
+
     const {
       quotationId,
       customerId,
       customerName,
+      customerEmail,
       customerPhone,
       customerAddress,
       items,
@@ -176,6 +193,7 @@ export const createInvoice = async (
         customerName,
         customerPhone,
         customerAddress,
+        userId, // เพิ่ม userId
         subtotal,
         discount: discountAmount,
         vat: vatPercent,
@@ -188,25 +206,57 @@ export const createInvoice = async (
         workImages: workImages,                 // รูป After (ถ้ามีส่งมา)
         acceptanceSignature: acceptanceSignature, // ลายเซ็นรับงาน (ถ้ามีส่งมา)
 
-        // กรณีแปลงจาก Quotation อาจจะดึงรูป Before มาเก็บไว้ด้วยก็ได้ 
-        // หรือจะปล่อยให้ Linked กันผ่าน quotationId ก็ได้ (เลือกแบบ Linked ประหยัดที่กว่า)
-
         items: {
           create: itemsData
         }
-      },
+      } as any, // ใช้ as any ชั่วคราวจนกว่าจะมี Prisma types ที่ถูกต้อง
       include: {
         customer: true,
-        items: true,
-        quotation: true // include quotation เพื่อดูรูป Before
+        quotation: true,
+        items: {
+          include: {
+            product: true
+          }
+        },
+        payments: true,
+        _count: {
+          select: {
+            items: true,
+            images: true,
+            signatures: true,
+            payments: true
+          }
+        }
       }
     });
+
+    // ส่งอีเมลแจ้งลูกค้า (ถ้าสร้างตรง ไม่ผ่าน quotation)
+    if (!quotationId) {
+      const emailToSend = customerEmail || (invoice as any).customer?.email;
+      if (emailToSend) {
+        try {
+          console.log(`[EMAIL] Attempting to send invoice email to: ${emailToSend}`);
+          let pdfBuffer: Buffer | undefined;
+          try {
+            pdfBuffer = await pdfService.generateInvoicePDF(invoice as any);
+            console.log('[EMAIL] ✓ Invoice PDF generated successfully');
+          } catch (pdfError) {
+            console.error('[EMAIL] ✗ Invoice PDF generation failed (will send without PDF):', pdfError instanceof Error ? pdfError.message : pdfError);
+          }
+          await emailService.sendInvoiceToCustomer(invoice as any, pdfBuffer, emailToSend);
+          console.log(`[EMAIL] ✓ Invoice email sent successfully to ${emailToSend}`);
+        } catch (emailError) {
+          console.error('[EMAIL] ✗ Error sending invoice email:', emailError instanceof Error ? emailError.message : emailError);
+        }
+      }
+    }
 
     return successResponse(res, invoice, 'สร้างใบแจ้งหนี้สำเร็จ', 201);
   } catch (error) {
     next(error);
   }
 };
+
 
 // แก้ไขใบแจ้งหนี้
 export const updateInvoice = async (

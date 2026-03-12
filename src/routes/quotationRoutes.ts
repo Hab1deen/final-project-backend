@@ -1,9 +1,10 @@
 import express from 'express';
-import { 
-  getAllQuotations, 
-  getQuotationById, 
-  createQuotation, 
-  updateQuotation, 
+import { authenticate } from '../middlewares/authMiddleware';
+import {
+  getAllQuotations,
+  getQuotationById,
+  createQuotation,
+  updateQuotation,
   deleteQuotation,
   convertToInvoice,
   addSignature  // เพิ่มบรรทัดนี้
@@ -11,12 +12,12 @@ import {
 
 const router = express.Router();
 
-router.get('/', getAllQuotations);
-router.get('/:id', getQuotationById);
-router.post('/', createQuotation);
-router.put('/:id', updateQuotation);
-router.delete('/:id', deleteQuotation);
-router.post('/:id/convert-to-invoice', convertToInvoice);
-router.post('/:id/signature', addSignature);  // เพิ่มบรรทัดนี้
+router.get('/', authenticate, getAllQuotations);
+router.get('/:id', authenticate, getQuotationById);
+router.post('/', authenticate, createQuotation);
+router.put('/:id', authenticate, updateQuotation);
+router.delete('/:id', authenticate, deleteQuotation);
+router.post('/:id/convert-to-invoice', authenticate, convertToInvoice);
+router.post('/:id/signature', authenticate, addSignature);  // เพิ่มบรรทัดนี้
 
 export default router;
