@@ -403,6 +403,12 @@ export const convertToInvoice = async (
   try {
     const { id } = req.params;
 
+    // ดึง userId จาก middleware
+    const userId = (req as any).user?.id;
+    if (!userId) {
+      throw new AppError('ไม่พบข้อมูลผู้ใช้ กรุณาเข้าสู่ระบบใหม่', 401);
+    }
+
     const quotation = await prisma.quotation.findUnique({
       where: { id: parseInt(id) },
       include: { items: true }
@@ -447,6 +453,7 @@ export const convertToInvoice = async (
           customerName: quotation.customerName,
           customerPhone: quotation.customerPhone,
           customerAddress: quotation.customerAddress,
+          userId, // เพิ่ม userId
           subtotal: quotation.subtotal,
           discount: quotation.discount,
           vat: quotation.vat,
@@ -462,7 +469,7 @@ export const convertToInvoice = async (
               total: item.total
             }))
           }
-        },
+        } as any, // ใช้ as any ชั่วคราว
         include: {
           items: true
         }
